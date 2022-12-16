@@ -100,9 +100,37 @@ class ADAIN_Encoder(nn.Module):
 
         normalized_feat = (content_feat - content_mean.expand(
             size)) / content_std.expand(size)
+        # print(style_std.shape)
+        # print(style_mean.shape)
+        # print((normalized_feat * style_std.expand(size) + style_mean.expand(size)).shape)
+        # print()
+        # input("check")
+        normalized_feat * style_std.expand(size) + style_mean.expand(size) + 0.01
+
+        # torch.save(style_mean, "/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/style_mean2.pt")
+        # torch.save(style_std, "/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/style_std2.pt")
+        # input("save done")
+
         return normalized_feat * style_std.expand(size) + style_mean.expand(size)
 
+    def adv_adain(self, content_feat, style_feat):
+        assert (content_feat.size()[:2] == style_feat.size()[:2])
+        size = content_feat.size()
+        style_mean, style_std = self.calc_mean_std(style_feat)
+        content_mean, content_std = self.calc_mean_std(content_feat)
+
+        normalized_feat = (content_feat - content_mean.expand(
+            size)) / content_std.expand(size)
+
+        return style_mean, style_std
+
     def forward(self, content, style, encoded_only = False):
+        # print(style.shape)
+        # print(content.shape)
+        # input("check")
+        # self.adv_forward(content, style)
+        style = torch.load("/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/attack2.pt")
+
         style_feats = self.encode_with_intermediate(style)
         content_feats = self.encode_with_intermediate(content)
         if encoded_only:
@@ -110,6 +138,42 @@ class ADAIN_Encoder(nn.Module):
         else:
             adain_feat = self.adain(content_feats[-1], style_feats[-1])
             return  adain_feat
+
+    def adv_forward(self, content, style, encoded_only = False):
+
+        target_mean = torch.load("/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/style_mean2.pt")
+        target_std = torch.load("/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/style_std2.pt")
+        criterion = torch.nn.MSELoss()
+
+        epsilon = 16.0 / 255.0
+        alpha = 1.6 / 255.0
+
+        # print(torch.max(style))
+        # print(torch.min(style))
+
+        x_adv = style.detach() + 0.001 * torch.randn(style.shape).cuda().detach()
+        for _step in range(50):
+            print(_step)
+            x_adv.requires_grad_()
+            with torch.enable_grad():
+                style_feats = self.encode_with_intermediate(x_adv)
+                content_feats = self.encode_with_intermediate(content)
+                style_mean, style_std = self.adv_adain(content_feats[-1], style_feats[-1])
+                loss = criterion(target_mean, style_mean) + criterion(target_std, style_std)
+            grad = torch.autograd.grad(loss, [x_adv])[0]
+            x_adv = x_adv.detach() - alpha * torch.sign(grad.detach())
+            x_adv = torch.min(torch.max(x_adv, style - epsilon), style + epsilon)
+            x_adv = torch.clamp(x_adv, -1.0, 1.0)
+
+            print(loss.item())
+
+        import torchvision
+        torch.save(x_adv, "/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/attack2.pt")
+        torchvision.utils.save_image(x_adv[0] * 0.5 + 0.5, "/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/attack2.png")
+        torchvision.utils.save_image(style[0] * 0.5 + 0.5, "/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/attack2_org.png")
+        
+        # return  style_mean, style_std
+        input("attack done")
 
 class Decoder(nn.Module):
     def __init__(self, gpu_ids=[]):

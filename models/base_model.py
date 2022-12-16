@@ -126,6 +126,11 @@ class BaseModel(ABC):
             self.forward()
             self.compute_visuals()
 
+    def adv(self):
+        """adv
+        """
+        self.adv_forward()
+
     def compute_visuals(self):
         """Calculate additional output images for visdom and HTML visualization"""
         pass

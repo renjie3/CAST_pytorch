@@ -186,6 +186,12 @@ class CASTModel(BaseModel):
                 self.rec_A = self.netDec_A(self.rec_A_feat)
                 self.rec_B = self.netDec_B(self.rec_B_feat)
 
+    def adv_forward(self):
+        """Run forward pass; called by both functions <optimize_parameters> and <test>."""
+
+        self.real_A_feat = self.netAE(self.real_A, self.real_B)  # G_A(A)
+        self.fake_B = self.netDec_B(self.real_A_feat)
+
     def backward_D_basic(self, netD, content,style, fake):
         """Calculate GAN loss for the discriminator
         Parameters:

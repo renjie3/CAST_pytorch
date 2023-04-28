@@ -5,6 +5,7 @@ from models import create_model
 from util.visualizer import save_images
 from util import html
 import util.util as util
+from torchvision.utils import save_image
 
 
 if __name__ == '__main__':
@@ -28,12 +29,13 @@ if __name__ == '__main__':
             model.setup(opt)               # regular setup: load and print networks; create schedulers
             model.parallelize()
             if opt.eval:
+                input("check eval")
                 model.eval()
         if i >= opt.num_test:  # only apply our model to opt.num_test images.
             break
         model.set_input(data)  # unpack data from data loader
-        # model.test()           # run inference
-        model.adv()           # run adv
+        model.test()           # run inference
+        # model.adv()           # run adv
         visuals = model.get_current_visuals()  # get image results
         img_path = model.get_image_paths()     # get image paths
         if i % 5 == 0:  # save images to an HTML file

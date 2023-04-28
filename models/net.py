@@ -124,12 +124,17 @@ class ADAIN_Encoder(nn.Module):
 
         return style_mean, style_std
 
+    def adv_adain_for_return_loss_fn(self, style_feat):
+        style_mean, style_std = self.calc_mean_std(style_feat)
+
+        return style_mean, style_std
+
     def forward(self, content, style, encoded_only = False):
         # print(style.shape)
         # print(content.shape)
         # input("check")
         # self.adv_forward(content, style)
-        style = torch.load("/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/attack2.pt")
+        # style = torch.load("/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/attack2.pt")
 
         style_feats = self.encode_with_intermediate(style)
         content_feats = self.encode_with_intermediate(content)
@@ -174,6 +179,40 @@ class ADAIN_Encoder(nn.Module):
         
         # return  style_mean, style_std
         input("attack done")
+
+    def adv_forward_loss(self, x_adv, org_style_mean, org_style_std):
+
+        criterion = torch.nn.MSELoss()
+
+        # epsilon = 16.0 / 255.0
+        # alpha = 1.6 / 255.0
+
+        # print(torch.max(style))
+        # print(torch.min(style))
+
+        # org_style_feats = self.encode_with_intermediate(style)
+        # org_style_mean, org_style_std = self.adv_adain_for_return_loss_fn(org_style_feats[-1])
+
+        with torch.enable_grad():
+            style_feats = self.encode_with_intermediate(x_adv)
+            style_mean, style_std = self.adv_adain_for_return_loss_fn(style_feats[-1])
+            loss = criterion(org_style_mean, style_mean) + criterion(org_style_std, style_std)
+            # grad = torch.autograd.grad(loss, [x_adv])[0]
+            # x_adv = x_adv.detach() + alpha * torch.sign(grad.detach())
+            # x_adv = torch.min(torch.max(x_adv, style - epsilon), style + epsilon)
+            # x_adv = torch.clamp(x_adv, -1.0, 1.0)
+
+        #     print(loss.item())
+
+        # import torchvision
+        # torch.save(x_adv, "/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/attack2.pt")
+        # torchvision.utils.save_image(x_adv[0] * 0.5 + 0.5, "/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/attack2.png")
+        # torchvision.utils.save_image(style[0] * 0.5 + 0.5, "/mnt/home/renjie3/Documents/unlearnable/diffusion/CAST_pytorch/results/demo/attack2_org.png")
+        
+        # # return  style_mean, style_std
+        # input("attack done")
+
+        return loss
 
 class Decoder(nn.Module):
     def __init__(self, gpu_ids=[]):
